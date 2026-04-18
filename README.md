@@ -1,149 +1,166 @@
-# Autoencoder From Scratch (PyTorch + MNIST)
+# Autoencoder from Scratch — PyTorch / MNIST
 
-This repository contains a notebook-first implementation of a fully connected autoencoder built from scratch with PyTorch and trained on MNIST.
+A self-contained reference implementation of a fully connected autoencoder trained on MNIST, designed for reproducibility and structured experimentation. The codebase is intentionally minimal to serve as a clean baseline for extensions such as denoising autoencoders, variational autoencoders (VAEs), and convolutional variants.
 
-Project file:
-- `coding Autoencoder from scratch.ipynb`
+---
 
-The notebook walks through the full pipeline:
-1. Import libraries and configure device (CPU/GPU).
-2. Load MNIST with torchvision and create a DataLoader.
-3. Define an `Autoencoder` class (encoder + decoder).
-4. Train using reconstruction loss (`MSELoss`) and Adam.
-5. Visualize original vs reconstructed digits.
-6. Extract latent vectors and inspect latent structure with plotting logic.
-7. For latent dimensions greater than 3, use PCA projection to visualize in 2D.
+## Overview
 
-## What Is Implemented
+Autoencoders learn a compressed latent representation of input data by optimizing a reconstruction objective. This implementation covers the core unsupervised representation learning pipeline: encoding high-dimensional observations into a bottleneck embedding and decoding them back to pixel space using only dense (MLP) layers.
 
-### Model Architecture
+All components — model definition, training loop, evaluation, and latent-space diagnostics — are contained in a single annotated notebook.
 
-The autoencoder is a dense (MLP) architecture operating on flattened MNIST images:
+---
 
-- Input: `28 x 28 = 784`
-- Encoder:
-  - `Linear(784, hidden_dim)`
-  - `ReLU`
-  - `Linear(hidden_dim, latent_dim)`
-  - `ReLU`
-- Decoder:
-  - `Linear(latent_dim, hidden_dim)`
-  - `ReLU`
-  - `Linear(hidden_dim, 784)`
-  - `Sigmoid`
+## Architecture
 
-Default constructor values in the notebook:
-- `latent_dim = 32`
-- `hidden_dim = 256`
+The model is a symmetric encoder–decoder with ReLU nonlinearities in the encoder and a Sigmoid output in the decoder to match the `[0, 1]` pixel range produced by `torchvision.transforms.ToTensor`.
 
-### Training Setup
+```
+Input (784)
+    │
+    ▼
+Linear(784 → hidden_dim) → ReLU
+    │
+    ▼
+Linear(hidden_dim → latent_dim) → ReLU     ← latent code z
+    │
+    ▼
+Linear(latent_dim → hidden_dim) → ReLU
+    │
+    ▼
+Linear(hidden_dim → 784) → Sigmoid
 
-- Dataset: MNIST training split
-- Batch size: `128`
-- Optimizer: `Adam(lr=1e-3)`
-- Loss: `MSELoss`
-- Epochs: `5`
-- Device: CUDA if available, else CPU
+Output (784 → 28×28)
+```
 
-### Visualizations
+| Hyperparameter | Default |
+|---|---|
+| `latent_dim` | 32 |
+| `hidden_dim` | 256 |
+| Input dimension | 784 (28 × 28, flattened) |
+| Output activation | Sigmoid |
 
-The notebook includes two key visual checks:
+---
 
-- **Reconstruction quality**: side-by-side original and decoded images.
-- **Latent space analysis**:
-  - `1D`: histogram
-  - `2D`: scatter
-  - `3D`: rotatable 3D scatter
-  - `>3D`: PCA to 2D (this is used by default because latent dim is 32)
+## Training Configuration
+
+| Setting | Value |
+|---|---|
+| Dataset | MNIST (training split, 60 000 samples) |
+| Batch size | 128 |
+| Optimizer | Adam |
+| Learning rate | 1 × 10⁻³ |
+| Loss function | MSELoss (pixel-wise) |
+| Epochs | 5 |
+| Device | CUDA if available, else CPU |
+
+---
 
 ## Repository Structure
 
 ```
 .
-├── coding Autoencoder from scratch.ipynb
+├── coding Autoencoder from scratch.ipynb   # Full pipeline: train → evaluate → visualize
 └── README.md
 ```
 
+---
+
 ## Requirements
 
-Python 3.9+ recommended.
-
-Install dependencies:
+Python ≥ 3.9.
 
 ```bash
 pip install torch torchvision matplotlib scikit-learn numpy
 ```
 
-Optional for a cleaner notebook experience:
+Optional:
 
 ```bash
-pip install jupyter
+pip install jupyter   # for Jupyter Lab / Notebook interface
 ```
 
-## How To Run
+---
 
-### Option 1: VS Code Notebook (recommended for this repo)
+## Reproducing Results
+
+**VS Code (recommended)**
 
 1. Open `coding Autoencoder from scratch.ipynb` in VS Code.
-2. Select a Python kernel with required packages installed.
-3. Run cells from top to bottom.
+2. Select a Python kernel with the required packages.
+3. Run all cells top-to-bottom (`Ctrl+Shift+P` → *Run All Cells*).
 
-### Option 2: Jupyter Lab/Notebook
+**Jupyter**
 
 ```bash
-jupyter notebook
+jupyter notebook "coding Autoencoder from scratch.ipynb"
 ```
 
-Then open the notebook file and execute all cells sequentially.
+Execute cells sequentially. First run downloads MNIST (~11 MB); internet access is required.
 
-## Expected Outputs
+---
 
-When the notebook is run successfully, you should see:
+## Outputs
 
-- Epoch-by-epoch training loss printed in the training cell.
-- A figure showing original digits and their reconstructions.
-- A latent-space plot. With default settings (`latent_dim=32`), this appears as a PCA-projected 2D scatter plot colored by digit labels.
+A complete run produces:
 
-## Notes On Design Choices
+- **Training log** — per-epoch reconstruction loss printed to stdout.
+- **Reconstruction figure** — side-by-side grid of original and decoded MNIST digits.
+- **Latent-space diagnostic** — visualization modality selected automatically by dimensionality:
 
-- **Why flatten images?**
-  - Keeps implementation simple and focused on autoencoder fundamentals.
-- **Why `Sigmoid` at decoder output?**
-  - MNIST pixel values are in `[0, 1]` after `ToTensor()`, so sigmoid naturally matches this range.
-- **Why MSE for reconstruction?**
-  - Common and stable baseline for image reconstruction tasks.
+| `latent_dim` | Visualization |
+|---|---|
+| 1 | Histogram of scalar codes |
+| 2 | 2D scatter, colored by class label |
+| 3 | Rotatable 3D scatter |
+| > 3 (default: 32) | PCA projection to 2D, colored by class label |
 
-## Common Issues And Fixes
+---
 
-### 1) Dataset download errors
+## Experimental Variables
 
-- Ensure internet access on first run.
-- Retry the notebook cell that creates `datasets.MNIST(..., download=True, ...)`.
+The following hyperparameters are exposed in the notebook for systematic ablation:
 
-### 2) Slow training on CPU
+| Variable | Values to explore |
+|---|---|
+| `latent_dim` | 2, 3, 8, 16, 32, 64 |
+| `hidden_dim` | 128, 256, 512 |
+| `epochs` | 5, 10, 20 |
 
-- Use fewer epochs while experimenting.
-- Reduce batch size if memory is constrained.
+Reducing `latent_dim` (e.g., to 2 or 3) allows direct geometric inspection of the learned manifold without PCA projection.
 
-### 3) Notebook kernel missing packages
+---
 
-- Confirm package installation in the same Python environment as the selected kernel.
+## Design Decisions
 
-## Suggested Experiments
+**Flattened input.** Convolutions are omitted deliberately to isolate autoencoder fundamentals from spatial inductive biases. This makes the reconstruction objective and the latent structure easier to reason about.
 
-Try changing these values in the notebook and compare reconstruction/latent plots:
+**Sigmoid decoder output.** MNIST pixels lie in `[0, 1]` after `ToTensor`. Sigmoid is the natural output nonlinearity for MSE in this range and avoids unbounded reconstructions.
 
-- `latent_dim`: 2, 3, 8, 16, 32, 64
-- `hidden_dim`: 128, 256, 512
-- `epochs`: 5, 10, 20
+**MSELoss.** Pixel-wise mean squared error is a stable, interpretable reconstruction loss and a standard baseline prior to adopting binary cross-entropy or perceptual losses.
 
-You can also extend this baseline with:
+---
 
-- A convolutional autoencoder for better image quality.
-- Denoising objective (corrupt input, reconstruct clean target).
-- Variational autoencoder (VAE) for generative latent modeling.
+## Potential Extensions
+
+- **Convolutional autoencoder** — replace MLP blocks with `Conv2d` / `ConvTranspose2d` layers for spatially aware feature extraction.
+- **Denoising autoencoder (DAE)** — corrupt inputs with Gaussian or dropout noise; train to reconstruct the clean target.
+- **Variational autoencoder (VAE)** — replace the deterministic bottleneck with a learned Gaussian posterior; add KL divergence to the loss for generative modeling.
+- **Disentangled representations** — apply β-VAE or FactorVAE regularization to encourage axis-aligned latent factors.
+
+---
+
+## Known Issues
+
+| Symptom | Resolution |
+|---|---|
+| MNIST download fails | Ensure internet access on first run; retry the dataset cell |
+| Slow training on CPU | Reduce `epochs` during experimentation; reduce `batch_size` if memory-constrained |
+| Missing packages in kernel | Confirm installation in the same Python environment selected as the notebook kernel |
+
+---
 
 ## License
 
-No license file is currently present in this repository.
-If you plan to share or distribute this code, add a license file (for example, MIT) to clarify usage rights.
+No license file is currently present. If you intend to distribute or build upon this work, add an open-source license (MIT recommended) to clarify usage rights.
